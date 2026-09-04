@@ -1,0 +1,13 @@
+# Byte-compiled / Python files
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+
+# Environment and secrets
+.env
+
+# Docker data volumes (caso tenha montado em pasta local)
+postgres_data/
+grafana_data/
