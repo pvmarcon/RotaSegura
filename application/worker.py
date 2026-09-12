@@ -13,16 +13,20 @@ logger = logging.getLogger("async_worker")
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "127.0.0.1")
 REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "127.0.0.1")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "smart_cities_db")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
 
 redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0, decode_responses=True)
 
 def get_db_connection():
     return psycopg2.connect(
-        dbname="smart_cities_db",
-        user="postgres",
-        password="password",
-        host="127.0.0.1",
-        port="5433"
+        dbname=POSTGRES_DB,
+        user=POSTGRES_USER,
+        password=POSTGRES_PASSWORD,
+        host=POSTGRES_HOST,
+        port=POSTGRES_PORT,
     )
 
 def init_db():

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RotaSegura · Painel</title>
+  <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body>
+  <header class="admin-header">
+    <div>
+      <img src="/static/img/logo.svg" alt="Rota Segura" class="logo-img logo-img--header">
+    </div>
+    <a href="/admin/logout" class="btn btn-secondary">Sair</a>
+  </header>
+
+  <main class="admin-main">
+    <section class="card">
+      <div class="card-header-row">
+        <h2>Gerador de Carga e Simulação</h2>
+        <span class="tooltip-wrap" tabindex="0">
+          <span class="tooltip-icon" aria-hidden="true">?</span>
+          <span class="tooltip-bubble">Dispara uma única rajada de tamanho aleatório contra <code>/scan</code>. Você pode interromper o envio enquanto a rajada estiver em andamento.</span>
+        </span>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="min-count">Mínimo por rajada</label>
+          <input id="min-count" type="number" min="1" value="1000">
+        </div>
+        <div class="field">
+          <label for="max-count">Máximo por rajada</label>
+          <input id="max-count" type="number" min="1" value="5000">
+        </div>
+        <button id="trigger-btn" class="btn btn-primary">Iniciar simulação</button>
+      </div>
+
+      <div id="sim-status-line" class="status-pill">
+        <span id="sim-status-dot" class="status-dot"></span>
+        <span id="sim-status-text">Parado</span>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-tile sent">
+          <span class="stat-label"><span class="stat-dot"></span>Enviados</span>
+          <span id="stat-sent" class="stat-value">0</span>
+        </div>
+        <div class="stat-tile success">
+          <span class="stat-label"><span class="stat-dot"></span>Sucesso</span>
+          <span id="stat-success" class="stat-value">0</span>
+        </div>
+        <div class="stat-tile fail">
+          <span class="stat-label"><span class="stat-dot"></span>Falhas</span>
+          <span id="stat-fail" class="stat-value">0</span>
+        </div>
+      </div>
+
+      <div class="chart-wrap">
+        <span class="chart-axis-y" id="chart-max-label">0</span>
+        <canvas id="activity-chart"></canvas>
+      </div>
+      <div class="chart-axis-x">
+        <span>-15s</span>
+        <span>agora</span>
+      </div>
+    </section>
+
+    <aside class="card">
+      <h2>Status do sistema</h2>
+
+      <div class="system-badge">
+        {% if system_healthy %}
+        <span class="status-dot success pulse"></span>
+        <span class="label">Disponível</span>
+        {% else %}
+        <span class="status-dot danger"></span>
+        <span class="label">Indisponível</span>
+        {% endif %}
+      </div>
+
+      <ul class="status-list">
+        <li><span>Eventos registrados</span> <span class="status-value">{{ event_count }}</span></li>
+        <li><span>Ônibus com embarques ativos</span> <span class="status-value">{{ active_buses }}</span></li>
+      </ul>
+
+      <a href="{{ grafana_url }}" target="_blank" rel="noopener" class="btn btn-secondary with-icon">
+        Abrir Grafana
+        <svg class="icon-external" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <line x1="10" y1="14" x2="21" y2="3"></line>
+        </svg>
+      </a>
+    </aside>
+  </main>
+
+  <div id="confirm-modal" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <h3>Confirmar simulação</h3>
+      <p>Essa ação liga um gerador contínuo de tráfego real contra a API. Digite a senha de confirmação para começar.</p>
+      <input id="confirm-password" type="password" placeholder="Senha de confirmação" autocomplete="off">
+      <div class="modal-actions">
+        <button id="confirm-cancel" class="btn btn-secondary">Cancelar</button>
+        <button id="confirm-submit" class="btn btn-primary">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/admin.js?v=20260911-3"></script>
+</body>
+</html>

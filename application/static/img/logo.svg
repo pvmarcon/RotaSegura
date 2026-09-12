@@ -1,0 +1,70 @@
+<svg width="600" height="120" viewBox="0 0 600 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    @keyframes stretchAndRetract {
+      0% {
+        /* Estado inicial: traço curto sob a letra 'r' */
+        x: 2px;
+        y: 50px;
+        width: 24px;
+        opacity: 1;
+      }
+      35% {
+        /* 1. Lado esquerdo fica preso em x=2, lado direito se estica até o fim de "segura" */
+        x: 2px;
+        y: 50px;
+        width: 235px;
+        opacity: 1;
+      }
+      50% {
+        /* Pausa sutil com a barra totalmente estendida sob 'rota segura' */
+        x: 2px;
+        y: 50px;
+        width: 235px;
+        opacity: 1;
+      }
+      85% {
+        /* 2. Lado esquerdo começa a andar para a direita até encontrar o lado direito */
+        x: 213px;
+        y: 50px;
+        width: 24px;
+        opacity: 1;
+      }
+      92% {
+        /* Se encontram no final e somem desvanecendo */
+        x: 235px;
+        y: 50px;
+        width: 0px;
+        opacity: 0;
+      }
+      93% {
+        /* Retorna invisível para o ponto de partida */
+        x: 2px;
+        y: 50px;
+        width: 24px;
+        opacity: 0;
+      }
+      100% {
+        /* Reaparece no início e reinicia o loop */
+        x: 2px;
+        y: 50px;
+        width: 24px;
+        opacity: 1;
+      }
+    }
+
+    .expanding-bar {
+      animation: stretchAndRetract 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+  </style>
+
+  <g transform="translate(10, 20) scale(1.4)">
+    <!-- Texto "rota" -->
+    <text x="0" y="40" fill="#FFFFFF" font-family="'Inter', 'Arial Black', sans-serif" font-weight="900" font-size="38" letter-spacing="-1">rota</text>
+
+    <!-- Texto "segura" -->
+    <text x="90" y="40" fill="#FFFFFF" font-family="'Inter', 'Arial Black', sans-serif" font-weight="900" font-size="38" letter-spacing="-1">segura</text>
+
+    <!-- Traço Âmbar com Animação de Expansão/Retração -->
+    <rect class="expanding-bar" x="2" y="48" width="24" height="4" fill="#D97706" rx="1" />
+  </g>
+</svg>

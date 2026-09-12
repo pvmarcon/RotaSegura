@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RotaSegura · Login</title>
+  <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body class="auth-page">
+  <main class="auth-card">
+    <img src="/static/img/logo.svg" alt="Rota Segura" class="logo-img logo-img--auth">
+    <p class="subtitle">Painel administrativo</p>
+
+    {% if error %}
+    <p class="form-error">{{ error }}</p>
+    {% endif %}
+
+    <form method="post" action="/admin/login" class="auth-form">
+      <label for="username">Usuário</label>
+      <input id="username" name="username" type="text" autocomplete="username" required autofocus>
+
+      <label for="password">Senha</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+
+      <button type="submit" class="btn btn-primary">Entrar</button>
+    </form>
+  </main>
+</body>
+</html>
