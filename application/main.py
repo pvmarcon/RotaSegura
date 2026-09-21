@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import logging
 import time
@@ -30,17 +31,42 @@ from config import (
     SESSION_COOKIE_NAME,
     SESSION_COOKIE_SECURE,
     SESSION_MAX_AGE_SECONDS,
+    QR_HMAC_SECRET,
+    QR_TOKEN_TTL_SECONDS,
+    SERVICE_CONNECT_TIMEOUT_SECONDS,
     SIMULATION_HARD_CAP,
 )
+from qr_tokens import QRTokenError, gerar_token_qr, validar_token_qr
 from simulation import active_job_id, event_stream, simulation_jobs, start_simulation, stop_simulation
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("api_gateway")
 
-redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0, decode_responses=True)
+redis_client = redis.Redis(
+    host=REDIS_HOST,
+    port=6379,
+    db=0,
+    decode_responses=True,
+    socket_connect_timeout=SERVICE_CONNECT_TIMEOUT_SECONDS,
+    socket_timeout=SERVICE_CONNECT_TIMEOUT_SECONDS,
+)
 
 rabbitmq_connection: Optional[aio_pika.abc.AbstractRobustConnection] = None
 rabbitmq_channel: Optional[aio_pika.abc.AbstractChannel] = None
+
+
+def claim_qr_scan(raw_qr_code: str, expires_at: int) -> bool:
+    """Registra o primeiro uso do token; repetições do mesmo QR são recusadas."""
+    fingerprint = hashlib.sha256(raw_qr_code.strip().encode("utf-8")).hexdigest()
+    ttl = max(1, expires_at - int(time.time()))
+    try:
+        return bool(redis_client.set(f"qr_scan:{fingerprint}", "1", nx=True, ex=ttl))
+    except redis.RedisError as exc:
+        logger.error("Não foi possível verificar idempotência do QR: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Serviço de controle de scans temporariamente indisponível.",
+        ) from exc
 
 
 async def ensure_rabbitmq_channel() -> Optional[aio_pika.abc.AbstractChannel]:
@@ -63,7 +89,7 @@ async def ensure_rabbitmq_channel() -> Optional[aio_pika.abc.AbstractChannel]:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await ensure_rabbitmq_channel()
+    # RabbitMQ é conectado sob demanda ao registrar um embarque.
     yield
     if rabbitmq_connection is not None:
         await rabbitmq_connection.close()
@@ -85,6 +111,75 @@ class ScanPayload(BaseModel):
     bus_id: str
     monitor_id: str
     timestamp: float = Field(default_factory=time.time)
+
+
+class QRValidationPayload(BaseModel):
+    qr_code: str = Field(min_length=1)
+
+
+class QRGenerationPayload(BaseModel):
+    aluno_id: str = Field(min_length=1, max_length=100)
+    validade_segundos: int = Field(default=300, ge=60, le=86400)
+
+
+@app.get("/scanner", response_class=HTMLResponse)
+async def qr_scanner(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "scanner.html",
+        {"qr_token_ttl_seconds": QR_TOKEN_TTL_SECONDS},
+    )
+
+
+@app.post("/api/v1/validar-qr")
+async def validar_qr(payload: QRValidationPayload):
+    try:
+        aluno = validar_token_qr(payload.qr_code, QR_HMAC_SECRET)
+    except QRTokenError as exc:
+        return {
+            "status": "erro",
+            "dados_aluno": None,
+            "mensagem": str(exc),
+        }
+
+    if not claim_qr_scan(payload.qr_code, aluno["exp"]):
+        return {
+            "status": "duplicado",
+            "dados_aluno": {"aluno_id": aluno["aluno_id"]},
+            "mensagem": "Este QR Code já foi utilizado.",
+        }
+
+    await publish_to_rabbitmq({
+        "student_id": aluno["aluno_id"],
+        "bus_id": "QR-SCANNER",
+        "monitor_id": "WEB-SCANNER",
+        "timestamp": time.time(),
+        "event_type": "STUDENT_BOARDED",
+    })
+
+    return {
+        "status": "sucesso",
+        "dados_aluno": {"aluno_id": aluno["aluno_id"]},
+        "exp": aluno["exp"],
+        "mensagem": "Embarque liberado. QR Code válido.",
+    }
+
+
+@app.post("/admin/gerar-qr")
+async def gerar_qr_admin(request: Request, payload: QRGenerationPayload):
+    if not get_session_user(request):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sessão inválida.")
+
+    token = gerar_token_qr(
+        payload.aluno_id,
+        QR_HMAC_SECRET,
+        payload.validade_segundos,
+    )
+    return {
+        "aluno_id": payload.aluno_id.strip(),
+        "validade_segundos": payload.validade_segundos,
+        "token": token,
+    }
 
 
 async def publish_to_rabbitmq(event_data: dict):
@@ -199,23 +294,28 @@ async def admin_logout():
 def get_system_status() -> dict:
     event_count = 0
     postgres_ok = False
-    try:
-        conn = psycopg2.connect(
-            dbname=POSTGRES_DB,
-            user=POSTGRES_USER,
-            password=POSTGRES_PASSWORD,
-            host=POSTGRES_HOST,
-            port=POSTGRES_PORT,
-            connect_timeout=2,
-        )
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM student_events;")
-        event_count = cursor.fetchone()[0]
-        cursor.close()
-        conn.close()
-        postgres_ok = True
-    except Exception as e:
-        logger.warning("Postgres indisponível: %s", e)
+    for attempt in range(2):
+        conn = None
+        try:
+            conn = psycopg2.connect(
+                dbname=POSTGRES_DB,
+                user=POSTGRES_USER,
+                password=POSTGRES_PASSWORD,
+                host=POSTGRES_HOST,
+                port=POSTGRES_PORT,
+                connect_timeout=max(1, int(SERVICE_CONNECT_TIMEOUT_SECONDS)),
+            )
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM student_events;")
+                event_count = cursor.fetchone()[0]
+            postgres_ok = True
+            break
+        except Exception as e:
+            if attempt == 1:
+                logger.warning("Postgres indisponível: %s", e)
+        finally:
+            if conn is not None:
+                conn.close()
 
     active_buses = 0
     redis_ok = False
@@ -228,7 +328,9 @@ def get_system_status() -> dict:
     return {
         "event_count": event_count,
         "active_buses": active_buses,
-        "healthy": postgres_ok and redis_ok,
+        "api_available": True,
+        "postgres_ok": postgres_ok,
+        "redis_ok": redis_ok,
     }
 
 
@@ -246,7 +348,9 @@ async def admin_panel(request: Request):
             "grafana_url": GRAFANA_URL,
             "event_count": status_data["event_count"],
             "active_buses": status_data["active_buses"],
-            "system_healthy": status_data["healthy"],
+            "system_healthy": status_data["api_available"],
+            "postgres_ok": status_data["postgres_ok"],
+            "redis_ok": status_data["redis_ok"],
         },
     )
 

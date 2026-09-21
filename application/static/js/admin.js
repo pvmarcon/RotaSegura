@@ -1,4 +1,58 @@
 (() => {
+  const qrGeneratorForm = document.getElementById("qr-generator-form");
+  const qrStudentId = document.getElementById("qr-student-id");
+  const qrValidity = document.getElementById("qr-validity");
+  const qrPreview = document.getElementById("qr-code-preview");
+  const qrOutputLabel = document.getElementById("qr-output-label");
+  const qrToken = document.getElementById("qr-token");
+  const qrCopyToken = document.getElementById("qr-copy-token");
+  const qrGeneratorStatus = document.getElementById("qr-generator-status");
+
+  if (qrGeneratorForm) {
+    qrGeneratorForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const alunoId = qrStudentId.value.trim();
+      const validadeSegundos = (parseInt(qrValidity.value, 10) || 5) * 60;
+      qrGeneratorStatus.textContent = "Gerando...";
+      qrGeneratorStatus.className = "qr-generator-status";
+
+      let response;
+      try {
+        response = await fetch("/admin/gerar-qr", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ aluno_id: alunoId, validade_segundos: validadeSegundos }),
+        });
+      } catch (error) {
+        qrGeneratorStatus.textContent = "Falha de rede ao gerar o QR Code.";
+        qrGeneratorStatus.className = "qr-generator-status error";
+        return;
+      }
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        qrGeneratorStatus.textContent = data.detail || "Não foi possível gerar o QR Code.";
+        qrGeneratorStatus.className = "qr-generator-status error";
+        return;
+      }
+
+      qrPreview.replaceChildren();
+      new QRCode(qrPreview, { text: data.token, width: 190, height: 190, colorDark: "#111113", colorLight: "#ffffff" });
+      qrOutputLabel.textContent = `QR Code válido por ${qrValidity.value} minuto(s) para ${data.aluno_id}`;
+      qrToken.value = data.token;
+      qrCopyToken.disabled = false;
+      qrGeneratorStatus.textContent = "QR Code gerado com assinatura HMAC-SHA256.";
+      qrGeneratorStatus.className = "qr-generator-status success";
+    });
+
+    qrCopyToken.addEventListener("click", async () => {
+      if (!qrToken.value) return;
+      await navigator.clipboard.writeText(qrToken.value);
+      qrGeneratorStatus.textContent = "Token copiado.";
+      qrGeneratorStatus.className = "qr-generator-status success";
+    });
+  }
+
   const triggerBtn = document.getElementById("trigger-btn");
   const minCountInput = document.getElementById("min-count");
   const maxCountInput = document.getElementById("max-count");

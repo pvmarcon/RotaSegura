@@ -72,7 +72,7 @@
       <div class="system-badge">
         {% if system_healthy %}
         <span class="status-dot success pulse"></span>
-        <span class="label">Disponível</span>
+        <span class="label">API disponível</span>
         {% else %}
         <span class="status-dot danger"></span>
         <span class="label">Indisponível</span>
@@ -93,6 +93,39 @@
         </svg>
       </a>
     </aside>
+
+    <section class="card qr-generator-card">
+      <div class="card-header-row">
+        <div>
+          <h2>Gerar QR Code de aluno</h2>
+          <p class="card-help">Crie um código assinado para testar o leitor de embarque.</p>
+        </div>
+      </div>
+
+      <div class="qr-generator-layout">
+        <form id="qr-generator-form" class="qr-generator-form">
+          <div class="field">
+            <label for="qr-student-id">ID do aluno</label>
+            <input id="qr-student-id" type="text" maxlength="100" placeholder="Ex.: ALUNO-001" required>
+          </div>
+          <div class="field">
+            <label for="qr-validity">Validade (minutos)</label>
+            <input id="qr-validity" type="number" min="1" max="1440" value="5" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Gerar QR Code</button>
+          <p id="qr-generator-status" class="qr-generator-status" role="status"></p>
+        </form>
+
+        <div class="qr-output">
+          <div id="qr-code-preview" class="qr-code-preview" aria-label="QR Code gerado"></div>
+          <p id="qr-output-label" class="qr-output-label">Nenhum QR Code gerado</p>
+          <div class="qr-token-row">
+            <input id="qr-token" type="text" readonly placeholder="O token assinado aparecerá aqui">
+            <button id="qr-copy-token" type="button" class="btn btn-secondary" disabled>Copiar token</button>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <div id="confirm-modal" class="modal-overlay" hidden>
@@ -107,6 +140,7 @@
     </div>
   </div>
 
-  <script src="/static/js/admin.js?v=20260911-3"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="/static/js/admin.js?v=20260911-4"></script>
 </body>
 </html>

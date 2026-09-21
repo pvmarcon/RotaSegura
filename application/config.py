@@ -40,3 +40,8 @@ POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
 
 SESSION_COOKIE_NAME = "admin_session"
+
+# Assinatura dos tokens QR. Em produção, sempre defina QR_HMAC_SECRET no ambiente.
+QR_HMAC_SECRET = os.getenv("QR_HMAC_SECRET", SESSION_SECRET)
+QR_TOKEN_TTL_SECONDS = int(os.getenv("QR_TOKEN_TTL_SECONDS", "300"))
+SERVICE_CONNECT_TIMEOUT_SECONDS = float(os.getenv("SERVICE_CONNECT_TIMEOUT_SECONDS", "0.5"))

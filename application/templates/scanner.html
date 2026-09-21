@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>RotaSegura | Monitor</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    :root { color-scheme: light; --ink: #111827; --muted: #64748b; --line: #e2e8f0; --paper: #f1f5f9; --card: #fff; --green: #16a34a; --yellow: #eab900; --red: #dc2626; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { overflow: hidden; background: var(--paper); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button { border: 0; font: inherit; cursor: pointer; }
+    .app { height: 100dvh; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom)); }
+    .topbar { height: 42px; display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto; }
+    .brand { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; }
+    .brand-mark { width: 9px; height: 9px; border-radius: 50%; background: var(--green); }
+    .topbar small { color: var(--muted); font-size: 11px; }
+    .view { display: none; min-height: 0; flex: 1; flex-direction: column; gap: 10px; }
+    .view.active { display: flex; }
+    .camera-card, .history-card { min-height: 0; flex: 1; display: flex; flex-direction: column; border-radius: 14px; background: var(--card); padding: 10px; box-shadow: 0 2px 10px rgba(15, 23, 42, .07); }
+    .camera-heading { display: flex; align-items: center; justify-content: space-between; padding: 2px 2px 8px; }
+    .camera-heading strong, .history-title strong { font-size: 14px; }
+    .camera-heading span, .history-title span { color: var(--muted); font-size: 11px; }
+    .camera-box { position: relative; min-height: 0; flex: 1; overflow: hidden; border-radius: 11px; background: #000; }
+    #reader, #reader__scan_region { width: 100%; height: 100%; min-height: 0 !important; border: 0 !important; }
+    #reader video { width: 100% !important; height: 100% !important; object-fit: cover; }
+    #reader > div:first-child, #reader__dashboard { display: none !important; }
+    .frame { position: absolute; inset: 50% auto auto 50%; width: min(64vw, 240px); aspect-ratio: 1; transform: translate(-50%, -50%); border: 2px solid var(--yellow); border-radius: 9px; pointer-events: none; box-shadow: 0 0 0 999px rgba(0, 0, 0, .35); }
+    .frame:after { content: ""; position: absolute; left: 8px; right: 8px; top: 50%; height: 2px; background: var(--yellow); opacity: .8; animation: scan 2s ease-in-out infinite; }
+    @keyframes scan { 0%, 100% { transform: translateY(-70px); } 50% { transform: translateY(70px); } }
+    .last-scan { min-height: 45px; display: flex; align-items: center; gap: 9px; padding: 7px 2px 0; }
+    .last-icon, .history-check { width: 26px; height: 26px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; color: #fff; background: var(--green); font-weight: 800; }
+    .last-icon.error, .history-item.invalid .history-check { background: var(--red); }
+    .last-copy, .history-copy { min-width: 0; font-size: 11px; line-height: 1.25; }
+    .last-copy strong, .last-copy span, .history-copy strong, .history-copy span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .last-copy span, .history-copy span { color: var(--muted); }
+    .action { width: 100%; height: 42px; border-radius: 10px; background: var(--yellow); color: #473b00; font-size: 12px; font-weight: 800; flex: 0 0 auto; }
+    .action.secondary { background: #fff; border: 1px solid var(--line); color: var(--ink); }
+    .history-title { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+    .history-list { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+    .history-item { display: flex; align-items: center; gap: 9px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .history-copy span { font-size: 10px; margin-top: 2px; }
+    .empty { color: var(--muted); font-size: 12px; text-align: center; padding: 24px 8px; }
+    .nav { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 10px; flex: 0 0 auto; }
+    .nav button { height: 38px; border-radius: 9px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .nav button.active { background: var(--ink); color: #fff; }
+    @media (min-width: 700px) { .app { padding-top: 18px; padding-bottom: 18px; } .camera-box { max-height: 600px; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar"><div class="brand"><i class="brand-mark"></i>Modo Monitor</div><small id="connection-state">online</small></header>
+    <section id="scanner-view" class="view active">
+      <div class="camera-card">
+        <div class="camera-heading"><strong>Leitor de QR Code</strong><span id="camera-state">Iniciando</span></div>
+        <div class="camera-box"><div id="reader"></div><div class="frame"></div></div>
+        <div class="last-scan"><div id="last-icon" class="last-icon">✓</div><div class="last-copy"><strong id="last-title">Aguardando leitura</strong><span id="last-message">Aponte a câmera para o código do aluno.</span></div></div>
+      </div>
+      <button id="camera-toggle" class="action" type="button">Parar câmera</button>
+      <button id="history-open" class="action secondary" type="button">Ver histórico de embarques</button>
+    </section>
+    <section id="history-view" class="view">
+      <div class="history-card">
+        <div class="history-title"><strong>Embarques registrados</strong><span id="history-count">0 leituras</span></div>
+        <div id="history-list" class="history-list"><p class="empty">Nenhuma leitura registrada ainda.</p></div>
+      </div>
+      <button id="scanner-open" class="action" type="button">Voltar para o leitor</button>
+    </section>
+    <nav class="nav" aria-label="Navegação do monitor"><button id="nav-scanner" class="active" type="button">Scanner</button><button id="nav-history" type="button">Histórico</button></nav>
+  </main>
+  <script>
+    (() => {
+      const reader = new Html5Qrcode("reader");
+      const cameraState = document.getElementById("camera-state");
+      const toggle = document.getElementById("camera-toggle");
+      const lastIcon = document.getElementById("last-icon");
+      const lastTitle = document.getElementById("last-title");
+      const lastMessage = document.getElementById("last-message");
+      const historyList = document.getElementById("history-list");
+      const historyCount = document.getElementById("history-count");
+      let lastCode = "";
+      let lastScanAt = 0;
+      let running = false;
+      let history = JSON.parse(localStorage.getItem("rotasegura-scans") || "[]");
+
+      function setView(name) {
+        document.getElementById("scanner-view").classList.toggle("active", name === "scanner");
+        document.getElementById("history-view").classList.toggle("active", name === "history");
+        document.getElementById("nav-scanner").classList.toggle("active", name === "scanner");
+        document.getElementById("nav-history").classList.toggle("active", name === "history");
+      }
+      function renderHistory() {
+        historyCount.textContent = `${history.length} leitura${history.length === 1 ? "" : "s"}`;
+        historyList.replaceChildren();
+        if (!history.length) { historyList.innerHTML = '<p class="empty">Nenhuma leitura registrada ainda.</p>'; return; }
+        history.forEach((item) => {
+          const row = document.createElement("div");
+          row.className = `history-item${item.ok ? "" : " invalid"}`;
+          row.innerHTML = `<div class="history-check">${item.ok ? "✓" : "!"}</div><div class="history-copy"><strong>${item.ok ? "Embarque liberado" : "Acesso negado"} · ${item.student}</strong><span>${item.time} · ${item.message}</span></div>`;
+          historyList.appendChild(row);
+        });
+      }
+      function showResult(data, code) {
+        if (data.status === "duplicado") {
+          lastTitle.textContent = "QR Code já registrado";
+          lastMessage.textContent = data.mensagem;
+          lastCode = code;
+          return;
+        }
+        const ok = data.status === "sucesso";
+        const student = data.dados_aluno?.aluno_id || "Aluno não identificado";
+        const time = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        const message = data.mensagem || "Resposta recebida da API.";
+        lastIcon.textContent = ok ? "✓" : "!";
+        lastIcon.className = `last-icon${ok ? "" : " error"}`;
+        lastTitle.textContent = ok ? `${student} confirmado` : "Acesso negado";
+        lastMessage.textContent = `${message} · ${time}`;
+        history.unshift({ ok, student, time, message });
+        history = history.slice(0, 50);
+        localStorage.setItem("rotasegura-scans", JSON.stringify(history));
+        renderHistory();
+        lastCode = code;
+      }
+      async function onScanSuccess(decodedText) {
+        const now = Date.now();
+        if (now - lastScanAt < 3000 || (decodedText === lastCode && now - lastScanAt < 3000)) return;
+        lastScanAt = now;
+        try {
+          const response = await fetch("/api/v1/validar-qr", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ qr_code: decodedText }) });
+          const data = await response.json();
+          showResult(data, decodedText);
+        } catch (error) { showResult({ status: "erro", mensagem: "API indisponível" }, decodedText); }
+      }
+      async function stopCamera() { if (!running) return; await reader.stop(); running = false; toggle.textContent = "Iniciar câmera"; cameraState.textContent = "Parada"; }
+      async function startCamera() {
+        if (!window.isSecureContext || !navigator.mediaDevices) { cameraState.textContent = "HTTPS necessário"; toggle.disabled = true; return; }
+        try { await reader.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 220, height: 220 } }, onScanSuccess, () => {}); running = true; toggle.textContent = "Parar câmera"; cameraState.textContent = "Ativa"; }
+        catch (error) { cameraState.textContent = "Sem acesso"; lastMessage.textContent = "Permita a câmera ou abra usando HTTPS."; }
+      }
+      document.getElementById("history-open").onclick = () => setView("history");
+      document.getElementById("scanner-open").onclick = () => setView("scanner");
+      document.getElementById("nav-scanner").onclick = () => setView("scanner");
+      document.getElementById("nav-history").onclick = () => setView("history");
+      toggle.onclick = () => running ? stopCamera() : startCamera();
+      renderHistory();
+      startCamera();
+    })();
+  </script>
+</body>
+</html>
