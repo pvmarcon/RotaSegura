@@ -121,12 +121,12 @@
       "targets": [
         {
           "format": "table",
-          "rawSql": "SELECT bus_id AS \"Ônibus\", COUNT(*) AS \"Embarques\" FROM student_events WHERE $__timeFilter(created_at) GROUP BY bus_id ORDER BY \"Embarques\" DESC;",
+          "rawSql": "SELECT bus_id AS \"Ônibus\", COUNT(DISTINCT student_id) AS \"Alunos únicos\", COUNT(*) AS \"Embarques\", MAX(created_at) AS \"Último embarque\" FROM student_events WHERE $__timeFilter(created_at) GROUP BY bus_id ORDER BY \"Alunos únicos\" DESC, \"Embarques\" DESC LIMIT 10;",
           "refId": "A"
         }
       ],
-      "title": "Embarques por ônibus",
-      "type": "barchart"
+      "title": "Alunos e embarques por ônibus",
+      "type": "table"
     }
   ],
   "refresh": "10s",
