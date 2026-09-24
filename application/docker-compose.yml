@@ -1,8 +1,15 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   app:
     image: python:3.12-slim
     container_name: bus_app
     restart: unless-stopped
+    logging: *default-logging
     working_dir: /app
     volumes:
       - .:/app
@@ -31,6 +38,7 @@ services:
     image: python:3.12-slim
     container_name: bus_worker
     restart: unless-stopped
+    logging: *default-logging
     working_dir: /app
     volumes:
       - .:/app
@@ -53,6 +61,7 @@ services:
     image: postgres:15-alpine
     container_name: bus_postgres
     restart: always
+    logging: *default-logging
     environment:
       POSTGRES_DB: smart_cities_db
       POSTGRES_USER: postgres
@@ -66,6 +75,7 @@ services:
     image: rabbitmq:3-management-alpine
     container_name: bus_rabbitmq
     restart: always
+    logging: *default-logging
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
@@ -78,6 +88,7 @@ services:
     image: redis:7-alpine
     container_name: bus_redis
     restart: always
+    logging: *default-logging
     ports:
       - "6379:6379"
 
@@ -85,6 +96,7 @@ services:
     image: grafana/grafana:latest
     container_name: bus_grafana
     restart: always
+    logging: *default-logging
     ports:
       - "3000:3000"
     volumes:
@@ -100,6 +112,7 @@ services:
     image: grafana/loki:latest
     container_name: bus_loki
     restart: always
+    logging: *default-logging
     ports:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
