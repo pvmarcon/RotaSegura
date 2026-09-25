@@ -8,14 +8,14 @@ from typing import Optional
 
 import httpx
 
-from config import APP_BASE_URL, BUCKET_WINDOW_SECONDS, SIMULATION_MAX_CONCURRENCY, SIMULATION_MIN_INTERVAL_S, SIMULATION_MAX_INTERVAL_S
+from config import APP_BASE_URL, BUCKET_WINDOW_SECONDS, SIMULATION_BUS_COUNT, SIMULATION_MAX_CONCURRENCY, SIMULATION_MIN_INTERVAL_S, SIMULATION_MAX_INTERVAL_S
 
 simulation_jobs: dict[str, dict] = {}
 active_job_id: Optional[str] = None
 
 
 def random_scan_payload(index: int) -> dict:
-    bus_id = f"ONIBUS-{random.randint(1, 5):02d}"
+    bus_id = f"ONIBUS-{random.randint(1, SIMULATION_BUS_COUNT):03d}"
     return {
         "student_id": f"SIM-ALUNO-{index:06d}",
         "bus_id": bus_id,

@@ -121,7 +121,7 @@
       "targets": [
         {
           "format": "table",
-          "rawSql": "SELECT bus_id AS \"Ônibus\", COUNT(DISTINCT student_id) AS \"Alunos únicos\", COUNT(*) AS \"Embarques\", MAX(created_at) AS \"Último embarque\" FROM student_events WHERE $__timeFilter(created_at) GROUP BY bus_id ORDER BY \"Alunos únicos\" DESC, \"Embarques\" DESC LIMIT 10;",
+          "rawSql": "SELECT bus_id AS \"Ônibus\", COUNT(DISTINCT student_id) AS \"Alunos únicos\", COUNT(*) AS \"Embarques\", MAX(created_at) AS \"Último embarque\" FROM student_events WHERE $__timeFilter(created_at) GROUP BY bus_id ORDER BY \"Alunos únicos\" DESC, \"Embarques\" DESC LIMIT 100;",
           "refId": "A"
         }
       ],
