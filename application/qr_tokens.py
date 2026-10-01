@@ -19,15 +19,31 @@ def _decode(value: str) -> bytes:
     return base64.urlsafe_b64decode((value + padding).encode("ascii"))
 
 
-def gerar_token_qr(aluno_id: str, segredo: str, validade_segundos: int = 300) -> str:
-    """Gera `payload.assinatura`, com payload JSON contendo aluno_id e exp."""
+def gerar_token_qr(
+    aluno_id: str,
+    aluno_nome: str,
+    bus_id: str,
+    boarding_location: str,
+    segredo: str,
+    validade_segundos: int = 300,
+) -> str:
+    """Gera token assinado com ID, nome, ônibus, local e validade."""
     if not aluno_id.strip():
         raise ValueError("aluno_id não pode ser vazio.")
+    if not aluno_nome.strip():
+        raise ValueError("aluno_nome não pode ser vazio.")
+    if not bus_id.strip():
+        raise ValueError("bus_id não pode ser vazio.")
+    if not boarding_location.strip():
+        raise ValueError("boarding_location não pode ser vazio.")
     if validade_segundos <= 0:
         raise ValueError("A validade deve ser maior que zero.")
 
     payload = {
         "aluno_id": aluno_id.strip(),
+        "aluno_nome": aluno_nome.strip(),
+        "bus_id": bus_id.strip(),
+        "boarding_location": boarding_location.strip(),
         "exp": int(time.time()) + validade_segundos,
     }
     payload_encoded = _encode(json.dumps(payload, separators=(",", ":"), ensure_ascii=True).encode("utf-8"))
@@ -55,6 +71,12 @@ def validar_token_qr(token: str, segredo: str) -> dict[str, Any]:
 
     if not isinstance(payload, dict) or not isinstance(payload.get("aluno_id"), str):
         raise QRTokenError("Dados do aluno ausentes no QR Code.")
+    if not isinstance(payload.get("aluno_nome"), str) or not payload["aluno_nome"].strip():
+        raise QRTokenError("Nome do aluno ausente no QR Code.")
+    if not isinstance(payload.get("bus_id"), str) or not payload["bus_id"].strip():
+        raise QRTokenError("Ônibus ausente no QR Code.")
+    if not isinstance(payload.get("boarding_location"), str) or not payload["boarding_location"].strip():
+        raise QRTokenError("Local de embarque ausente no QR Code.")
 
     exp = payload.get("exp")
     if not isinstance(exp, int) or isinstance(exp, bool):
@@ -62,4 +84,10 @@ def validar_token_qr(token: str, segredo: str) -> dict[str, Any]:
     if exp <= int(time.time()):
         raise QRTokenError("QR Code expirado.")
 
-    return {"aluno_id": payload["aluno_id"], "exp": exp}
+    return {
+        "aluno_id": payload["aluno_id"],
+        "aluno_nome": payload["aluno_nome"].strip(),
+        "bus_id": payload["bus_id"].strip(),
+        "boarding_location": payload["boarding_location"].strip(),
+        "exp": exp,
+    }

@@ -1,17 +1,200 @@
 (() => {
   const qrGeneratorForm = document.getElementById("qr-generator-form");
   const qrStudentId = document.getElementById("qr-student-id");
+  const qrBusId = document.getElementById("qr-bus-id");
+  const qrBoardingLocation = document.getElementById("qr-boarding-location");
   const qrValidity = document.getElementById("qr-validity");
   const qrPreview = document.getElementById("qr-code-preview");
   const qrOutputLabel = document.getElementById("qr-output-label");
   const qrToken = document.getElementById("qr-token");
   const qrCopyToken = document.getElementById("qr-copy-token");
   const qrGeneratorStatus = document.getElementById("qr-generator-status");
+  const studentRegistrationForm = document.getElementById("student-registration-form");
+  const studentRegistrationName = document.getElementById("student-registration-name");
+  const studentRegistrationStatus = document.getElementById("student-registration-status");
+
+  studentRegistrationForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const response = await fetch("/admin/alunos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ student_name: studentRegistrationName.value.trim() }),
+    });
+    const data = await response.json().catch(() => ({}));
+    studentRegistrationStatus.textContent = response.ok
+      ? `${data.student_name} (ID: ${data.student_id}) cadastrado.`
+      : data.detail || "Não foi possível cadastrar o aluno.";
+    studentRegistrationStatus.className = `qr-generator-status ${response.ok ? "success" : "error"}`;
+    if (response.ok) {
+      if (!qrStudentId) {
+        window.location.reload();
+        return;
+      }
+      studentRegistrationName.value = "";
+      qrStudentId.value = data.student_id;
+      const history = document.querySelector(".student-history-list");
+      const empty = document.querySelector(".student-history-empty");
+      if (empty) empty.remove();
+      let historyList = history;
+      if (!historyList) {
+        historyList = document.createElement("div");
+        historyList.className = "student-history-list";
+        document.querySelector(".student-history").appendChild(historyList);
+      }
+      const row = document.createElement("div");
+      row.className = "student-history-row student-history-row--new";
+      const name = document.createElement("strong");
+      name.textContent = data.student_name;
+      const id = document.createElement("span");
+      id.textContent = `(ID: ${data.student_id})`;
+      const created = document.createElement("small");
+      created.textContent = "agora";
+      row.append(name, id, created);
+      historyList.prepend(row);
+      const count = document.getElementById("student-history-count");
+      if (count) count.textContent = `${historyList.children.length} registros`;
+    }
+  });
+
+  const blockedStudentForm = document.getElementById("blocked-student-form");
+  const blockedStudentInput = document.getElementById("blocked-student-id");
+  const blockedStudentsList = document.getElementById("blocked-students-list");
+
+  function updateBoardingStatuses(studentId, blocked) {
+    document.querySelectorAll(`.status-tag[data-student-id="${CSS.escape(studentId)}"]`).forEach((status) => {
+      status.textContent = blocked ? "Bloqueado" : "Confirmado";
+      status.classList.toggle("status-tag--blocked", blocked);
+    });
+  }
+
+  async function loadBlockedStudents() {
+    if (!blockedStudentsList) return;
+    const response = await fetch("/admin/alunos-bloqueados");
+    if (!response.ok) return;
+    const students = await response.json();
+    blockedStudentsList.replaceChildren();
+    if (!students.length) {
+      blockedStudentsList.innerHTML = '<span class="table-empty">Nenhum aluno bloqueado.</span>';
+      return;
+    }
+    students.forEach((studentId) => {
+      const row = document.createElement("div");
+      row.className = "blocked-student-row";
+      const label = document.createElement("strong");
+      label.textContent = studentId;
+      const unblockButton = document.createElement("button");
+      unblockButton.className = "table-action";
+      unblockButton.type = "button";
+      unblockButton.textContent = "Desbloquear";
+      row.append(label, unblockButton);
+      unblockButton.addEventListener("click", async () => {
+        const result = await fetch(`/admin/alunos-bloqueados/${encodeURIComponent(studentId)}`, { method: "DELETE" });
+        if (result.ok) {
+          updateBoardingStatuses(studentId, false);
+          loadBlockedStudents();
+        }
+      });
+      blockedStudentsList.appendChild(row);
+    });
+  }
+
+  blockedStudentForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const studentId = blockedStudentInput.value.trim();
+    if (!studentId) return;
+    const response = await fetch("/admin/alunos-bloqueados", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ student_id: studentId }),
+    });
+    if (response.ok) {
+      blockedStudentInput.value = "";
+      updateBoardingStatuses(studentId, true);
+      loadBlockedStudents();
+    }
+  });
+  loadBlockedStudents();
+
+  const editModal = document.getElementById("boarding-edit-modal");
+  const editStudentInput = document.getElementById("edit-student-id");
+  const editBusInput = document.getElementById("edit-bus-id");
+  const editBoardingAtInput = document.getElementById("edit-boarding-at");
+  let editingBoardingId = null;
+
+  function toDateTimeLocal(value) {
+    const date = new Date(value);
+    const pad = (number) => String(number).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  function closeEditModal() {
+    editModal.hidden = true;
+    editingBoardingId = null;
+  }
+
+  document.querySelectorAll(".edit-boarding").forEach((button) => {
+    button.addEventListener("click", () => {
+      editingBoardingId = button.dataset.id;
+      editStudentInput.value = button.dataset.student;
+      editBusInput.value = button.dataset.bus;
+      editBoardingAtInput.value = toDateTimeLocal(button.dataset.created);
+      editModal.hidden = false;
+      editStudentInput.focus();
+    });
+  });
+
+  document.querySelectorAll(".delete-boarding").forEach((button) => {
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      const response = await fetch(`/admin/embarques/${button.dataset.id}`, { method: "DELETE" });
+      if (response.ok) {
+        button.closest("tr")?.remove();
+      } else {
+        button.disabled = false;
+        alert("Não foi possível excluir o embarque.");
+      }
+    });
+  });
+
+  document.getElementById("edit-cancel")?.addEventListener("click", closeEditModal);
+  editModal?.addEventListener("click", (event) => {
+    if (event.target === editModal) closeEditModal();
+  });
+  document.getElementById("edit-submit")?.addEventListener("click", async () => {
+    const studentId = editStudentInput.value.trim();
+    const busId = editBusInput.value.trim();
+    if (!editingBoardingId || !studentId || !busId || !editBoardingAtInput.value) return;
+    const response = await fetch(`/admin/embarques/${editingBoardingId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        student_id: studentId,
+        bus_id: busId,
+        boarding_at: new Date(editBoardingAtInput.value).toISOString(),
+      }),
+    });
+    if (response.ok) {
+      const row = document.querySelector(`.edit-boarding[data-id="${CSS.escape(editingBoardingId)}"]`)?.closest("tr");
+      if (row) {
+        row.querySelector(".boarding-student").textContent = `${studentId} (ID: ${studentId})`;
+        row.querySelector(".boarding-student").dataset.studentId = studentId;
+        row.querySelector(".status-tag").dataset.studentId = studentId;
+        row.querySelector(".boarding-bus").textContent = busId;
+        const editButton = row.querySelector(".edit-boarding");
+        editButton.dataset.student = studentId;
+        editButton.dataset.bus = busId;
+        row.querySelector(".boarding-time").textContent = new Date(editBoardingAtInput.value).toLocaleDateString("pt-BR") + " " + new Date(editBoardingAtInput.value).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      }
+      closeEditModal();
+    } else alert("Não foi possível editar o embarque.");
+  });
 
   if (qrGeneratorForm) {
     qrGeneratorForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const alunoId = qrStudentId.value.trim();
+      const busId = qrBusId.value.trim();
+      const boardingLocation = qrBoardingLocation.value.trim();
       const validadeSegundos = (parseInt(qrValidity.value, 10) || 5) * 60;
       qrGeneratorStatus.textContent = "Gerando...";
       qrGeneratorStatus.className = "qr-generator-status";
@@ -21,7 +204,7 @@
         response = await fetch("/admin/gerar-qr", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ aluno_id: alunoId, validade_segundos: validadeSegundos }),
+          body: JSON.stringify({ aluno_id: alunoId, bus_id: busId, boarding_location: boardingLocation, validade_segundos: validadeSegundos }),
         });
       } catch (error) {
         qrGeneratorStatus.textContent = "Falha de rede ao gerar o QR Code.";
@@ -38,7 +221,7 @@
 
       qrPreview.replaceChildren();
       new QRCode(qrPreview, { text: data.token, width: 190, height: 190, colorDark: "#111113", colorLight: "#ffffff" });
-      qrOutputLabel.textContent = `QR Code válido por ${qrValidity.value} minuto(s) para ${data.aluno_id}`;
+      qrOutputLabel.textContent = `${data.aluno_nome} (ID: ${data.aluno_id}) · ${data.bus_id} · ${data.boarding_location} · válido por ${qrValidity.value} minuto(s)`;
       qrToken.value = data.token;
       qrCopyToken.disabled = false;
       qrGeneratorStatus.textContent = "QR Code gerado com assinatura HMAC-SHA256.";
@@ -68,6 +251,7 @@
   const statusText = document.getElementById("sim-status-text");
   const chartMaxLabel = document.getElementById("chart-max-label");
   const canvas = document.getElementById("activity-chart");
+  if (!canvas) return;
   const ctx = canvas.getContext("2d");
 
   // Mantenha em sincronia com --accent-glow no admin.css

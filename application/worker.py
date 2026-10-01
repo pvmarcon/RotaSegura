@@ -38,13 +38,39 @@ def init_db():
             CREATE TABLE IF NOT EXISTS student_events (
                 id SERIAL PRIMARY KEY,
                 student_id VARCHAR(50) NOT NULL,
+                student_name VARCHAR(100) NOT NULL DEFAULT 'Aluno',
                 bus_id VARCHAR(50) NOT NULL,
                 monitor_id VARCHAR(50),
+                boarding_location VARCHAR(120) NOT NULL DEFAULT 'Não informado',
                 event_type VARCHAR(50) NOT NULL,
                 timestamp DOUBLE PRECISION NOT NULL,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
             CREATE INDEX IF NOT EXISTS idx_student_events_created_at ON student_events(created_at);
+            ALTER TABLE student_events ADD COLUMN IF NOT EXISTS boarding_location VARCHAR(120) NOT NULL DEFAULT 'Não informado';
+            ALTER TABLE student_events ADD COLUMN IF NOT EXISTS student_name VARCHAR(100) NOT NULL DEFAULT 'Aluno';
+            ALTER TABLE student_events ADD COLUMN IF NOT EXISTS qr_token TEXT;
+
+            CREATE TABLE IF NOT EXISTS students (
+                student_id VARCHAR(5) PRIMARY KEY,
+                student_name VARCHAR(100) NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE SEQUENCE IF NOT EXISTS student_id_sequence START WITH 1;
+
+            CREATE TABLE IF NOT EXISTS notifications (
+                id SERIAL PRIMARY KEY,
+                student_id VARCHAR(50) NOT NULL,
+                student_name VARCHAR(100) NOT NULL DEFAULT 'Aluno',
+                bus_id VARCHAR(50) NOT NULL,
+                event_type VARCHAR(50) NOT NULL,
+                boarding_at DOUBLE PRECISION NOT NULL,
+                message TEXT NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'GERADA',
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
+            ALTER TABLE notifications ADD COLUMN IF NOT EXISTS student_name VARCHAR(100) NOT NULL DEFAULT 'Aluno';
         """)
         conn.commit()
         cursor.close()
@@ -59,24 +85,44 @@ def process_event(ch, method, properties, body):
     logger.info(f" [Worker] Mensagem recebida da fila: {event}")
     
     student_id = event.get("student_id")
+    student_name = event.get("student_name", "Aluno")
     bus_id = event.get("bus_id")
     monitor_id = event.get("monitor_id", "DESCONHECIDO")
+    boarding_location = event.get("boarding_location", "Não informado")
     event_type = event.get("event_type", "STUDENT_BOARDED")
     timestamp = event.get("timestamp", time.time())
+    qr_token = event.get("qr_code")
 
     try:
         # Gravação no PostgreSQL
         conn = get_db_connection()
         cursor = conn.cursor()
         insert_query = """
-        INSERT INTO student_events (student_id, bus_id, monitor_id, event_type, timestamp)
-        VALUES (%s, %s, %s, %s, %s);
+        INSERT INTO student_events (
+            student_id, bus_id, monitor_id, boarding_location, event_type, timestamp, student_name, qr_token
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
         """
-        cursor.execute(insert_query, (student_id, bus_id, monitor_id, event_type, timestamp))
+        cursor.execute(
+            insert_query,
+            (student_id, bus_id, monitor_id, boarding_location, event_type, timestamp, student_name, qr_token),
+        )
+        notification_message = (
+            f"Aluno {student_name} (ID: {student_id}) realizou embarque no ônibus {bus_id}. "
+            f"Local: {boarding_location}. Evento: {event_type}."
+        )
+        cursor.execute(
+            """
+            INSERT INTO notifications (
+                    student_id, student_name, bus_id, event_type, boarding_at, message
+                ) VALUES (%s, %s, %s, %s, %s, %s);
+            """,
+            (student_id, student_name, bus_id, event_type, timestamp, notification_message),
+        )
         conn.commit()
         cursor.close()
         conn.close()
         logger.info(" [PostgreSQL] Evento 'STUDENT_BOARDED' gravado com sucesso!")
+        logger.info(" [PostgreSQL] Notificação interna gerada para o responsável.")
 
         # Atualização do Cache no Redis
         redis_key = f"bus:{bus_id}:students"

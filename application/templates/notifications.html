@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-intro"><div><p class="card-help">Alertas de embarques e eventos importantes do sistema.</p></div><span class="table-count">{{ notifications|length }} registros</span></section>
+<section class="card notifications-panel"><div class="notification-list">
+{% for notification in notifications %}
+<article class="notification-item"><div class="notification-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg></div><div class="notification-content"><div class="notification-heading"><strong>{{ notification.student_name }} (ID: {{ notification.student_id }})</strong><span class="status-tag">{{ notification.status }}</span></div><p>{{ notification.message }}</p><div class="notification-meta"><span>{{ notification.time }}</span><span>{{ notification.bus_id }}</span><span>{{ notification.event_type }}</span></div></div></article>
+{% else %}<p class="table-empty">Nenhuma notificação foi gerada ainda.</p>{% endfor %}
+</div></section>
+{% endblock %}
+{% block scripts %}{% endblock %}
