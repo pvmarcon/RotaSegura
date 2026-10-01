@@ -3,6 +3,7 @@
     "list": []
   },
   "editable": false,
+  "description": "Painel operacional da Rota Segura para acompanhamento de embarques em tempo real.",
   "graphTooltip": 1,
   "panels": [
     {
@@ -13,7 +14,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "fixed",
+            "fixedColor": "#FF7A00"
           },
           "unit": "short"
         },
@@ -58,7 +60,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "fixed",
+            "fixedColor": "#FF7A00"
           },
           "unit": "short"
         },
@@ -87,7 +90,7 @@
           "refId": "A"
         }
       ],
-      "title": "Eventos por 5 segundos",
+      "title": "Atividade de embarques",
       "type": "timeseries"
     },
     {
@@ -98,7 +101,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "fixed",
+            "fixedColor": "#FF7A00"
           }
         },
         "overrides": []
@@ -132,6 +136,8 @@
   "refresh": "10s",
   "schemaVersion": 39,
   "tags": [
+    "rota-segura",
+    "operacao",
     "smart-city"
   ],
   "templating": {
@@ -142,7 +148,7 @@
     "to": "now"
   },
   "timepicker": {},
-  "title": "Smart City Bus Tracking",
+  "title": "Rota Segura | Central de Operações",
   "uid": "smart-city-tracking",
   "version": 1
 }

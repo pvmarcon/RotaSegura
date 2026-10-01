@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} · Rota Segura</title>
+  <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body class="admin-shell" data-page="{{ active_page }}">
+  <aside class="sidebar" aria-label="Navegação principal">
+    <a class="sidebar-brand" href="/admin"><img src="/static/img/logo.svg" alt="Rota Segura"></a>
+    <nav class="sidebar-nav">
+      <span class="nav-section-label">Operação</span>
+      <a class="nav-link{% if active_page == 'dashboard' %} is-active{% endif %}" href="/admin"><span class="nav-icon" aria-hidden="true">⌂</span>Dashboard</a>
+      <a class="nav-link{% if active_page == 'alunos' %} is-active{% endif %}" href="/admin/alunos"><span class="nav-icon" aria-hidden="true">◉</span>Alunos</a>
+      <a class="nav-link{% if active_page == 'onibus' %} is-active{% endif %}" href="/admin/onibus"><span class="nav-icon" aria-hidden="true">▣</span>Ônibus</a>
+      <a class="nav-link{% if active_page == 'rotas' %} is-active{% endif %}" href="/admin/rotas"><span class="nav-icon" aria-hidden="true">⌁</span>Rotas</a>
+      <a class="nav-link{% if active_page == 'qr-codes' %} is-active{% endif %}" href="/admin/qr-codes"><span class="nav-icon" aria-hidden="true">#</span>QR Codes</a>
+      <a class="nav-link{% if active_page == 'scanner' %} is-active{% endif %}" href="/scanner"><span class="nav-icon" aria-hidden="true">⌗</span>Leitura / Embarque</a>
+      <a class="nav-link{% if active_page == 'embarques' %} is-active{% endif %}" href="/admin/embarques"><span class="nav-icon" aria-hidden="true">↗</span>Embarques</a>
+      <span class="nav-section-label">Gestão</span>
+      <a class="nav-link{% if active_page == 'relatorios' %} is-active{% endif %}" href="/admin/relatorios"><span class="nav-icon" aria-hidden="true">◒</span>Relatórios</a>
+      <a class="nav-link{% if active_page == 'notificacoes' %} is-active{% endif %}" href="/admin/notificacoes"><span class="nav-icon" aria-hidden="true">!</span>Notificações</a>
+      <a class="nav-link{% if active_page == 'usuarios' %} is-active{% endif %}" href="/admin/usuarios"><span class="nav-icon" aria-hidden="true">◎</span>Usuários</a>
+      <a class="nav-link{% if active_page == 'simulacao' %} is-active{% endif %}" href="/admin/simulacao"><span class="nav-icon" aria-hidden="true">▷</span>Simulação</a>
+      <a class="nav-link{% if active_page == 'configuracoes' %} is-active{% endif %}" href="/admin/configuracoes"><span class="nav-icon" aria-hidden="true">⚙</span>Configurações</a>
+    </nav>
+    <div class="sidebar-footer"><a href="/admin/logout">Sair</a></div>
+  </aside>
+  <main class="admin-main page-main">
+    <header class="page-header">
+      <div><p class="eyebrow">Rota Segura / {{ title }}</p><h1>{{ title }}</h1></div>
+      <div class="admin-header-actions"><a href="/scanner" class="btn btn-primary">Abrir leitura</a><button class="theme-toggle" type="button" data-theme-toggle aria-pressed="false"><span class="theme-toggle-icon"></span><span class="theme-toggle-label"></span></button></div>
+    </header>
+    {% block content %}{% endblock %}
+  </main>
+  <script src="/static/js/theme.js"></script>
+  {% block scripts %}{% endblock %}
+  <script src="/static/js/modules.js"></script>
+</body>
+</html>

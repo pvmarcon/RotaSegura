@@ -3,10 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>RotaSegura · Login</title>
+  <title>Rota Segura · Login</title>
   <link rel="stylesheet" href="/static/css/admin.css">
 </head>
 <body class="auth-page">
+  <button class="theme-toggle theme-toggle--floating" type="button" data-theme-toggle aria-pressed="false">
+    <span class="theme-toggle-icon" aria-hidden="true"></span>
+    <span class="theme-toggle-label"></span>
+  </button>
   <main class="auth-card">
     <img src="/static/img/logo.svg" alt="Rota Segura" class="logo-img logo-img--auth">
     <p class="subtitle">Painel administrativo</p>
@@ -25,5 +29,6 @@
       <button type="submit" class="btn btn-primary">Entrar</button>
     </form>
   </main>
+  <script src="/static/js/theme.js"></script>
 </body>
 </html>

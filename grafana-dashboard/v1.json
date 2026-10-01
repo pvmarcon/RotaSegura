@@ -32,14 +32,14 @@
           },
           "enable": true,
           "hide": true,
-          "iconColor": "rgba(0, 211, 255, 1)",
+          "iconColor": "rgba(255, 122, 0, 1)",
           "name": "Annotations & Alerts",
           "builtIn": true
         }
       }
     ],
     "cursorSync": "Off",
-    "description": "Série temporal dos embarques totais realizados.",
+    "description": "Central operacional da Rota Segura para acompanhamento dos embarques em tempo real.",
     "editable": true,
     "elements": {
       "panel-1": {
@@ -131,16 +131,17 @@
                     "steps": [
                       {
                         "value": 0,
-                        "color": "green"
+                        "color": "#FF7A00"
                       },
                       {
                         "value": 80,
-                        "color": "red"
+                        "color": "#FF4D4D"
                       }
                     ]
                   },
                   "color": {
-                    "mode": "palette-classic"
+                    "mode": "fixed",
+                    "fixedColor": "#FF7A00"
                   },
                   "custom": {
                     "axisBorderShow": false,
@@ -221,9 +222,9 @@
                       },
                       {
                         "id": "color",
-                        "value": {
-                          "mode": "continuous-cividis",
-                          "seriesBy": "last"
+                          "value": {
+                          "mode": "fixed",
+                          "fixedColor": "#FF7A00"
                         }
                       }
                     ]
@@ -279,7 +280,7 @@
       "hideTimepicker": false,
       "fiscalYearStartMonth": 0
     },
-    "title": "Embarques",
+    "title": "Rota Segura | Embarques em tempo real",
     "variables": [],
     "preferences": {
       "layout": {

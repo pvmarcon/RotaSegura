@@ -3,54 +3,97 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>RotaSegura | Monitor</title>
+  <title>Rota Segura | Monitor</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
-    :root { color-scheme: light; --ink: #111827; --muted: #64748b; --line: #e2e8f0; --paper: #f1f5f9; --card: #fff; --green: #16a34a; --yellow: #eab900; --red: #dc2626; }
+    :root { color-scheme: dark; --ink: #f4f4f5; --muted: #92929b; --line: rgba(255, 255, 255, .1); --paper: #080808; --card: #111113; --card-strong: #171719; --orange: #ff7a00; --orange-soft: #ffad66; --green: #31d391; --red: #ff6868; }
+    :root.light-theme { color-scheme: light; --ink: #1d1b19; --muted: #6d6862; --line: rgba(20, 20, 20, .12); --paper: #f4f1ed; --card: rgba(255, 255, 255, .86); --card-strong: #ffffff; --orange: #c85d00; --orange-soft: #a94c00; --green: #16875d; --red: #c33d3d; }
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; }
-    body { overflow: hidden; background: var(--paper); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { overflow: hidden; background: var(--paper); color: var(--ink); font-family: "Segoe UI", Tahoma, sans-serif; }
     button { border: 0; font: inherit; cursor: pointer; }
-    .app { height: 100dvh; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom)); }
-    .topbar { height: 42px; display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto; }
-    .brand { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; }
-    .brand-mark { width: 9px; height: 9px; border-radius: 50%; background: var(--green); }
-    .topbar small { color: var(--muted); font-size: 11px; }
-    .view { display: none; min-height: 0; flex: 1; flex-direction: column; gap: 10px; }
+    .app { height: 100dvh; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); }
+    .topbar { min-height: 54px; display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-mark { position: relative; width: 24px; height: 24px; border: 2px solid var(--orange); border-radius: 5px; transform: rotate(45deg); }
+    .brand-mark::after { content: ""; position: absolute; width: 6px; height: 6px; right: -4px; bottom: -4px; border-radius: 50%; background: var(--orange); }
+    .brand-copy { display: grid; gap: 2px; }
+    .brand-copy strong { font-size: 15px; letter-spacing: .01em; }
+    .brand-copy small { color: var(--muted); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+    .connection { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; }
+    .connection::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px rgba(49, 211, 145, .7); }
+    .scanner-header-actions { display: flex; align-items: center; gap: 12px; }
+    .dashboard-link { color: var(--orange-soft); font-size: 11px; font-weight: 700; text-decoration: none; }
+    .dashboard-link:hover { color: var(--orange); }
+    .view { display: none; min-height: 0; flex: 1; flex-direction: column; gap: 12px; }
     .view.active { display: flex; }
-    .camera-card, .history-card { min-height: 0; flex: 1; display: flex; flex-direction: column; border-radius: 14px; background: var(--card); padding: 10px; box-shadow: 0 2px 10px rgba(15, 23, 42, .07); }
-    .camera-heading { display: flex; align-items: center; justify-content: space-between; padding: 2px 2px 8px; }
-    .camera-heading strong, .history-title strong { font-size: 14px; }
-    .camera-heading span, .history-title span { color: var(--muted); font-size: 11px; }
-    .camera-box { position: relative; min-height: 0; flex: 1; overflow: hidden; border-radius: 11px; background: #000; }
+    .camera-card, .history-card { min-height: 0; flex: 1; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; background: var(--card); padding: 12px; box-shadow: 0 18px 45px rgba(0, 0, 0, .28); }
+    .camera-heading { display: flex; align-items: center; justify-content: space-between; padding: 2px 2px 10px; }
+    .camera-heading strong, .history-title strong { font-size: 14px; letter-spacing: .01em; }
+    .camera-heading span, .history-title span { color: var(--orange-soft); font-size: 11px; }
+    .camera-box { position: relative; min-height: 0; flex: 1; overflow: hidden; border: 1px solid rgba(255, 122, 0, .2); border-radius: 8px; background: #000; }
     #reader, #reader__scan_region { width: 100%; height: 100%; min-height: 0 !important; border: 0 !important; }
     #reader video { width: 100% !important; height: 100% !important; object-fit: cover; }
-    #reader > div:first-child, #reader__dashboard { display: none !important; }
-    .frame { position: absolute; inset: 50% auto auto 50%; width: min(64vw, 240px); aspect-ratio: 1; transform: translate(-50%, -50%); border: 2px solid var(--yellow); border-radius: 9px; pointer-events: none; box-shadow: 0 0 0 999px rgba(0, 0, 0, .35); }
-    .frame:after { content: ""; position: absolute; left: 8px; right: 8px; top: 50%; height: 2px; background: var(--yellow); opacity: .8; animation: scan 2s ease-in-out infinite; }
+    #reader__dashboard { display: none !important; }
+    .frame { position: absolute; inset: 50% auto auto 50%; width: min(64vw, 240px); aspect-ratio: 1; transform: translate(-50%, -50%); border: 2px solid var(--orange); border-radius: 9px; pointer-events: none; box-shadow: 0 0 0 999px rgba(0, 0, 0, .42), 0 0 22px rgba(255, 122, 0, .16); }
+    .frame:after { content: ""; position: absolute; left: 8px; right: 8px; top: 50%; height: 2px; background: var(--orange); opacity: .9; animation: scan 2s ease-in-out infinite; }
     @keyframes scan { 0%, 100% { transform: translateY(-70px); } 50% { transform: translateY(70px); } }
-    .last-scan { min-height: 45px; display: flex; align-items: center; gap: 9px; padding: 7px 2px 0; }
-    .last-icon, .history-check { width: 26px; height: 26px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; color: #fff; background: var(--green); font-weight: 800; }
+    .last-scan { min-height: 50px; display: flex; align-items: center; gap: 10px; padding: 10px 2px 0; }
+    .last-icon, .history-check { width: 28px; height: 28px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 8px; color: #080808; background: var(--green); font-weight: 800; }
     .last-icon.error, .history-item.invalid .history-check { background: var(--red); }
     .last-copy, .history-copy { min-width: 0; font-size: 11px; line-height: 1.25; }
     .last-copy strong, .last-copy span, .history-copy strong, .history-copy span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .last-copy span, .history-copy span { color: var(--muted); }
-    .action { width: 100%; height: 42px; border-radius: 10px; background: var(--yellow); color: #473b00; font-size: 12px; font-weight: 800; flex: 0 0 auto; }
-    .action.secondary { background: #fff; border: 1px solid var(--line); color: var(--ink); }
-    .history-title { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+    .action { width: 100%; height: 44px; border-radius: 8px; background: var(--orange); color: #160900; font-size: 12px; font-weight: 800; flex: 0 0 auto; transition: background .15s ease, transform .15s ease; }
+    .action:hover { background: #ff9133; }
+    .action:active { transform: translateY(1px); }
+    .action:disabled { opacity: .5; cursor: not-allowed; }
+    .action.secondary { background: var(--card-strong); border: 1px solid var(--line); color: var(--ink); }
+    .action.secondary:hover { background: #202024; }
+    .history-title { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
     .history-list { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; }
-    .history-item { display: flex; align-items: center; gap: 9px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .history-item { display: flex; align-items: center; gap: 10px; padding: 11px 2px; border-bottom: 1px solid var(--line); }
     .history-copy span { font-size: 10px; margin-top: 2px; }
-    .empty { color: var(--muted); font-size: 12px; text-align: center; padding: 24px 8px; }
-    .nav { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 10px; flex: 0 0 auto; }
-    .nav button { height: 38px; border-radius: 9px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 700; }
-    .nav button.active { background: var(--ink); color: #fff; }
-    @media (min-width: 700px) { .app { padding-top: 18px; padding-bottom: 18px; } .camera-box { max-height: 600px; } }
+    .empty { color: var(--muted); font-size: 12px; text-align: center; padding: 32px 8px; }
+    .nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding-top: 12px; flex: 0 0 auto; }
+    .nav button { height: 40px; border-radius: 8px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .nav button.active { background: var(--card-strong); color: var(--orange-soft); box-shadow: inset 0 -2px var(--orange); }
+    .theme-toggle { position: fixed; top: max(14px, env(safe-area-inset-top)); right: 14px; z-index: 4; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 11px; background: var(--card); color: var(--ink); cursor: pointer; font: 600 11px "Segoe UI", Tahoma, sans-serif; }
+    .theme-toggle:hover { border-color: var(--orange); }
+    .theme-toggle-icon { color: var(--orange); font-size: 15px; line-height: 1; }
+    .confirmation-view { min-height: 0; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px 8px; text-align: center; animation: confirmation-in .24s ease-out both; }
+    .confirmation-view[hidden] { display: none; }
+    .confirmation-mark { width: 86px; height: 86px; display: grid; place-items: center; border: 1px solid rgba(49, 211, 145, .45); border-radius: 50%; color: #07150f; background: var(--green); box-shadow: 0 0 0 10px rgba(49, 211, 145, .08), 0 12px 36px rgba(49, 211, 145, .2); animation: confirmation-mark-in .35s .08s ease-out both; }
+    .confirmation-mark svg { width: 46px; height: 46px; }
+    .confirmation-kicker { margin: 14px 0 0; color: var(--green); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .confirmation-view h1 { margin: 0; font-size: clamp(24px, 7vw, 34px); letter-spacing: 0; }
+    .confirmation-message { max-width: 330px; margin: 0 0 8px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .confirmation-details { width: min(100%, 360px); display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0 18px; }
+    .confirmation-details div { min-width: 0; padding: 13px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
+    .confirmation-details span, .confirmation-details strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .confirmation-details span { margin-bottom: 6px; color: var(--muted); font-size: 10px; }
+    .confirmation-details strong { font-size: 12px; }
+    .confirmation-view .action { width: min(100%, 360px); }
+    .manual-card { flex: 0 0 auto; }
+    .manual-help { margin: 0 2px 8px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .manual-form { display: grid; gap: 8px; }
+    .manual-form label { color: var(--muted); font-size: 11px; }
+    .manual-form input { width: 100%; height: 44px; border: 1px solid var(--line); border-radius: 8px; background: var(--card-strong); color: var(--ink); padding: 0 12px; font: inherit; }
+    .manual-form input:focus { outline: 2px solid var(--orange); outline-offset: 1px; }
+    .manual-form .action { margin-top: 8px; }
+    .manual-status { min-height: 18px; margin: 2px 0 0; color: var(--muted); font-size: 11px; }
+    .manual-status.success { color: var(--green); }
+    .manual-status.error { color: var(--red); }
+    @keyframes confirmation-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes confirmation-mark-in { from { opacity: 0; transform: scale(.78); } to { opacity: 1; transform: scale(1); } }
+    @media (min-width: 700px) { .app { padding-top: 22px; padding-bottom: 22px; } .camera-box { max-height: 600px; } }
+    @media (max-width: 380px) { .confirmation-details { gap: 5px; } .confirmation-details div { padding-inline: 5px; } .confirmation-details strong { font-size: 11px; } }
+    @media (max-width: 380px) { .dashboard-link { font-size: 10px; } .scanner-header-actions { gap: 7px; } }
   </style>
 </head>
 <body>
   <main class="app">
-    <header class="topbar"><div class="brand"><i class="brand-mark"></i>Modo Monitor</div><small id="connection-state">online</small></header>
+    <header class="topbar"><div class="brand"><i class="brand-mark" aria-hidden="true"></i><span class="brand-copy"><strong>Rota Segura</strong><small>Monitor de embarques</small></span></div><div class="scanner-header-actions"><a class="dashboard-link" href="/admin">Dashboard</a><small id="connection-state" class="connection">online</small></div></header>
     <section id="scanner-view" class="view active">
       <div class="camera-card">
         <div class="camera-heading"><strong>Leitor de QR Code</strong><span id="camera-state">Iniciando</span></div>
@@ -60,6 +103,22 @@
       <button id="camera-toggle" class="action" type="button">Parar câmera</button>
       <button id="history-open" class="action secondary" type="button">Ver histórico de embarques</button>
     </section>
+    <section id="manual-view" class="view">
+      <div class="camera-card manual-card">
+        <div class="camera-heading"><strong>Registrar por ID</strong><span>Sem câmera</span></div>
+        <p class="manual-help">Digite o ID de cinco dígitos cadastrado para registrar o embarque.</p>
+        <form id="manual-boarding-form" class="manual-form">
+          <label for="manual-student-id">ID do aluno</label>
+          <input id="manual-student-id" type="text" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" placeholder="Ex.: 00001" required>
+          <label for="manual-bus-id">Ônibus</label>
+          <input id="manual-bus-id" type="text" maxlength="50" placeholder="Ex.: BUS-01" required>
+          <label for="manual-location">Local ou escola</label>
+          <input id="manual-location" type="text" maxlength="120" placeholder="Ex.: Escola Central" required>
+          <button class="action" type="submit">Registrar embarque</button>
+          <p id="manual-status" class="manual-status" role="status"></p>
+        </form>
+      </div>
+    </section>
     <section id="history-view" class="view">
       <div class="history-card">
         <div class="history-title"><strong>Embarques registrados</strong><span id="history-count">0 leituras</span></div>
@@ -67,8 +126,28 @@
       </div>
       <button id="scanner-open" class="action" type="button">Voltar para o leitor</button>
     </section>
-    <nav class="nav" aria-label="Navegação do monitor"><button id="nav-scanner" class="active" type="button">Scanner</button><button id="nav-history" type="button">Histórico</button></nav>
+    <section id="confirmation-view" class="confirmation-view" aria-live="polite" hidden>
+      <div class="confirmation-mark" aria-hidden="true">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m13 25 8 8 15-17"></path>
+        </svg>
+      </div>
+      <p class="confirmation-kicker">Embarque registrado</p>
+      <h1>Entrada confirmada</h1>
+      <p class="confirmation-message">O QR Code foi validado e o embarque foi enviado para o sistema.</p>
+      <div class="confirmation-details">
+        <div><span>Aluno</span><strong id="confirmation-student">-</strong></div>
+        <div><span>Horário</span><strong id="confirmation-time">-</strong></div>
+        <div><span>Ônibus</span><strong id="confirmation-bus">-</strong></div>
+      </div>
+      <button id="confirmation-close" class="action" type="button">Continuar escaneando</button>
+    </section>
+    <nav class="nav" aria-label="Navegação do monitor"><button id="nav-scanner" class="active" type="button">Scanner</button><button id="nav-manual" type="button">Registrar por ID</button><button id="nav-history" type="button">Histórico</button></nav>
   </main>
+  <button class="theme-toggle theme-toggle--scanner" type="button" data-theme-toggle aria-pressed="false">
+    <span class="theme-toggle-icon" aria-hidden="true"></span>
+    <span class="theme-toggle-label"></span>
+  </button>
   <script>
     (() => {
       const reader = new Html5Qrcode("reader");
@@ -79,15 +158,30 @@
       const lastMessage = document.getElementById("last-message");
       const historyList = document.getElementById("history-list");
       const historyCount = document.getElementById("history-count");
+      const manualForm = document.getElementById("manual-boarding-form");
+      const manualStatus = document.getElementById("manual-status");
+      const confirmationView = document.getElementById("confirmation-view");
+      const confirmationStudent = document.getElementById("confirmation-student");
+      const confirmationTime = document.getElementById("confirmation-time");
+      const confirmationBus = document.getElementById("confirmation-bus");
       let lastCode = "";
       let lastScanAt = 0;
       let running = false;
-      let history = JSON.parse(localStorage.getItem("rotasegura-scans") || "[]");
+      let starting = false;
+      let history = [];
+      try {
+        const storedHistory = JSON.parse(localStorage.getItem("rotasegura-scans") || "[]");
+        history = Array.isArray(storedHistory) ? storedHistory : [];
+      } catch (error) {
+        localStorage.removeItem("rotasegura-scans");
+      }
 
       function setView(name) {
         document.getElementById("scanner-view").classList.toggle("active", name === "scanner");
+        document.getElementById("manual-view").classList.toggle("active", name === "manual");
         document.getElementById("history-view").classList.toggle("active", name === "history");
         document.getElementById("nav-scanner").classList.toggle("active", name === "scanner");
+        document.getElementById("nav-manual").classList.toggle("active", name === "manual");
         document.getElementById("nav-history").classList.toggle("active", name === "history");
       }
       function renderHistory() {
@@ -97,7 +191,17 @@
         history.forEach((item) => {
           const row = document.createElement("div");
           row.className = `history-item${item.ok ? "" : " invalid"}`;
-          row.innerHTML = `<div class="history-check">${item.ok ? "✓" : "!"}</div><div class="history-copy"><strong>${item.ok ? "Embarque liberado" : "Acesso negado"} · ${item.student}</strong><span>${item.time} · ${item.message}</span></div>`;
+          const check = document.createElement("div");
+          check.className = "history-check";
+          check.textContent = item.ok ? "✓" : "!";
+          const copy = document.createElement("div");
+          copy.className = "history-copy";
+          const title = document.createElement("strong");
+          title.textContent = `${item.ok ? "Embarque liberado" : "Acesso negado"} · ${item.student}`;
+          const details = document.createElement("span");
+          details.textContent = `${item.time} · ${item.message}`;
+          copy.append(title, details);
+          row.append(check, copy);
           historyList.appendChild(row);
         });
       }
@@ -109,18 +213,32 @@
           return;
         }
         const ok = data.status === "sucesso";
-        const student = data.dados_aluno?.aluno_id || "Aluno não identificado";
+        const student = data.dados_aluno?.aluno_nome || "Aluno não identificado";
         const time = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
         const message = data.mensagem || "Resposta recebida da API.";
         lastIcon.textContent = ok ? "✓" : "!";
         lastIcon.className = `last-icon${ok ? "" : " error"}`;
-        lastTitle.textContent = ok ? `${student} confirmado` : "Acesso negado";
+        lastTitle.textContent = ok ? `${student} (ID: ${data.dados_aluno?.aluno_id || "-"}) confirmado` : "Acesso negado";
         lastMessage.textContent = `${message} · ${time}`;
         history.unshift({ ok, student, time, message });
         history = history.slice(0, 50);
         localStorage.setItem("rotasegura-scans", JSON.stringify(history));
         renderHistory();
         lastCode = code;
+        if (ok) {
+          confirmationStudent.textContent = student;
+          confirmationTime.textContent = time;
+          confirmationBus.textContent = data.dados_aluno?.bus_id || "Ônibus não informado";
+          confirmationView.hidden = false;
+          document.getElementById("scanner-view").classList.remove("active");
+          document.getElementById("history-view").classList.remove("active");
+          document.querySelector(".nav").hidden = true;
+        }
+      }
+      function closeConfirmation() {
+        confirmationView.hidden = true;
+        document.getElementById("scanner-view").classList.add("active");
+        document.querySelector(".nav").hidden = false;
       }
       async function onScanSuccess(decodedText) {
         const now = Date.now();
@@ -129,23 +247,61 @@
         try {
           const response = await fetch("/api/v1/validar-qr", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ qr_code: decodedText }) });
           const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || "Serviço de validação indisponível.");
           showResult(data, decodedText);
-        } catch (error) { showResult({ status: "erro", mensagem: "API indisponível" }, decodedText); }
+        } catch (error) { showResult({ status: "indisponivel", mensagem: error.message || "API indisponível" }, decodedText); }
       }
       async function stopCamera() { if (!running) return; await reader.stop(); running = false; toggle.textContent = "Iniciar câmera"; cameraState.textContent = "Parada"; }
       async function startCamera() {
         if (!window.isSecureContext || !navigator.mediaDevices) { cameraState.textContent = "HTTPS necessário"; toggle.disabled = true; return; }
-        try { await reader.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 220, height: 220 } }, onScanSuccess, () => {}); running = true; toggle.textContent = "Parar câmera"; cameraState.textContent = "Ativa"; }
-        catch (error) { cameraState.textContent = "Sem acesso"; lastMessage.textContent = "Permita a câmera ou abra usando HTTPS."; }
+        if (running || starting) return;
+        starting = true;
+        toggle.disabled = true;
+        cameraState.textContent = "Solicitando acesso";
+        try {
+          const startRequest = reader.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 220, height: 220 } }, onScanSuccess, () => {});
+          const timeout = new Promise((resolve, reject) => setTimeout(() => reject(new Error("camera-timeout")), 8000));
+          await Promise.race([startRequest, timeout]);
+          running = true;
+          toggle.textContent = "Parar câmera";
+          cameraState.textContent = "Ativa";
+        } catch (error) {
+          cameraState.textContent = "Sem acesso";
+          toggle.textContent = "Tentar novamente";
+          lastMessage.textContent = "Permita a câmera e tente novamente.";
+        } finally {
+          starting = false;
+          toggle.disabled = false;
+        }
       }
       document.getElementById("history-open").onclick = () => setView("history");
       document.getElementById("scanner-open").onclick = () => setView("scanner");
       document.getElementById("nav-scanner").onclick = () => setView("scanner");
+      document.getElementById("nav-manual").onclick = () => setView("manual");
       document.getElementById("nav-history").onclick = () => setView("history");
+      document.getElementById("confirmation-close").onclick = closeConfirmation;
+      manualForm.onsubmit = async (event) => {
+        event.preventDefault();
+        manualStatus.textContent = "Registrando...";
+        const response = await fetch("/api/v1/registrar-id", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            student_id: document.getElementById("manual-student-id").value.trim(),
+            bus_id: document.getElementById("manual-bus-id").value.trim(),
+            boarding_location: document.getElementById("manual-location").value.trim(),
+          }),
+        });
+        const data = await response.json().catch(() => ({}));
+        manualStatus.textContent = data.mensagem || data.detail || (response.ok ? "Embarque registrado." : "Não foi possível registrar.");
+        manualStatus.className = `manual-status ${data.status === "sucesso" ? "success" : "error"}`;
+        if (data.status === "sucesso") manualForm.reset();
+      };
       toggle.onclick = () => running ? stopCamera() : startCamera();
       renderHistory();
       startCamera();
     })();
   </script>
+  <script src="/static/js/theme.js"></script>
 </body>
 </html>
