@@ -11,3 +11,4 @@ env/
 # Docker data volumes (caso tenha montado em pasta local)
 postgres_data/
 grafana_data/
+data/

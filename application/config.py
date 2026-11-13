@@ -42,6 +42,14 @@ POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
 
 SESSION_COOKIE_NAME = "admin_session"
 
+SQLITE_PATH = os.getenv("SQLITE_PATH", "./data/offline_events.db")
+OFFLINE_BATCH_SIZE = int(os.getenv("OFFLINE_BATCH_SIZE", "100"))
+OFFLINE_SYNC_INTERVAL_SECONDS = float(os.getenv("OFFLINE_SYNC_INTERVAL_SECONDS", "5"))
+OFFLINE_PROCESSING_TIMEOUT_SECONDS = float(
+    os.getenv("OFFLINE_PROCESSING_TIMEOUT_SECONDS", "300")
+)
+OFFLINE_RETRY_DELAY_SECONDS = float(os.getenv("OFFLINE_RETRY_DELAY_SECONDS", "30"))
+
 # Assinatura dos tokens QR. Em produção, sempre defina QR_HMAC_SECRET no ambiente.
 QR_HMAC_SECRET = os.getenv("QR_HMAC_SECRET", SESSION_SECRET)
 QR_TOKEN_TTL_SECONDS = int(os.getenv("QR_TOKEN_TTL_SECONDS", "300"))

@@ -1,4 +1,110 @@
 (() => {
+  const offlineTestForm = document.getElementById("offline-test-form");
+  const offlineTestStatus = document.getElementById("offline-test-status");
+  const offlineConnectionStatus = document.getElementById("offline-connection-status");
+  const offlineEventsBody = document.getElementById("offline-events-body");
+  const offlineCountElements = {
+    pending: document.getElementById("offline-pending"),
+    processing: document.getElementById("offline-processing"),
+    sent: document.getElementById("offline-sent"),
+    failed: document.getElementById("offline-failed"),
+  };
+
+  function formatEventTime(timestamp) {
+    return new Date(timestamp * 1000).toLocaleString("pt-BR", {
+      dateStyle: "short",
+      timeStyle: "medium",
+    });
+  }
+
+  function renderOfflineStatus(data) {
+    Object.entries(offlineCountElements).forEach(([status, element]) => {
+      element.textContent = data.counts?.[status] ?? 0;
+    });
+
+    offlineEventsBody.replaceChildren();
+    if (!data.recent?.length) {
+      const emptyRow = document.createElement("tr");
+      emptyRow.innerHTML = '<td colspan="5" class="offline-empty">Nenhum evento local.</td>';
+      offlineEventsBody.appendChild(emptyRow);
+      return;
+    }
+
+    data.recent.forEach((event) => {
+      const row = document.createElement("tr");
+      const eventCell = document.createElement("td");
+      const eventCode = document.createElement("code");
+      eventCode.textContent = event.event_id.slice(0, 10);
+      eventCell.appendChild(eventCode);
+
+      const routeCell = document.createElement("td");
+      routeCell.textContent = `${event.student_id} · ${event.bus_id}`;
+
+      const statusCell = document.createElement("td");
+      const statusBadge = document.createElement("span");
+      statusBadge.className = `queue-status queue-status--${event.status}`;
+      statusBadge.textContent = event.status;
+      statusCell.appendChild(statusBadge);
+
+      const attemptsCell = document.createElement("td");
+      attemptsCell.textContent = event.attempts;
+
+      const createdCell = document.createElement("td");
+      createdCell.textContent = formatEventTime(event.created_at);
+
+      row.append(eventCell, routeCell, statusCell, attemptsCell, createdCell);
+      offlineEventsBody.appendChild(row);
+    });
+  }
+
+  async function refreshOfflineStatus() {
+    try {
+      const response = await fetch("/admin/offline/status", { cache: "no-store" });
+      if (!response.ok) throw new Error("status");
+      renderOfflineStatus(await response.json());
+      offlineConnectionStatus.textContent = `Atualizado às ${new Date().toLocaleTimeString("pt-BR")}`;
+      offlineConnectionStatus.className = "refresh-label";
+    } catch (error) {
+      offlineConnectionStatus.textContent = "Falha ao atualizar";
+      offlineConnectionStatus.className = "refresh-label error";
+    }
+  }
+
+  if (offlineTestForm) {
+    offlineTestForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const button = offlineTestForm.querySelector("button");
+      button.disabled = true;
+      offlineTestStatus.textContent = "Gravando no SQLite...";
+      offlineTestStatus.className = "offline-test-status";
+
+      try {
+        const response = await fetch("/admin/offline/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            student_id: document.getElementById("offline-student-id").value.trim(),
+            bus_id: document.getElementById("offline-bus-id").value.trim(),
+            monitor_id: "ADMIN-PANEL",
+          }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.detail || "Não foi possível criar o evento.");
+        offlineTestStatus.textContent = `Evento ${data.event_id.slice(0, 10)} criado como pending.`;
+        offlineTestStatus.className = "offline-test-status success";
+        await refreshOfflineStatus();
+      } catch (error) {
+        offlineTestStatus.textContent = error.message || "Falha ao criar evento de teste.";
+        offlineTestStatus.className = "offline-test-status error";
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    refreshOfflineStatus();
+    window.setInterval(refreshOfflineStatus, 3000);
+  }
+
   const qrGeneratorForm = document.getElementById("qr-generator-form");
   const qrStudentId = document.getElementById("qr-student-id");
   const qrValidity = document.getElementById("qr-validity");

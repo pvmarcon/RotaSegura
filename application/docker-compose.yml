@@ -13,6 +13,7 @@ services:
     working_dir: /app
     volumes:
       - .:/app
+      - offline_data:/app/data
     ports:
       - "8000:8000"
       - "8001:8000"
@@ -26,6 +27,7 @@ services:
       POSTGRES_PORT: "5432"
       APP_BASE_URL: http://localhost:8000
       GRAFANA_URL: http://localhost:3000
+      SQLITE_PATH: /app/data/offline_events.db
     depends_on:
       - postgres
       - rabbitmq
@@ -42,6 +44,7 @@ services:
     working_dir: /app
     volumes:
       - .:/app
+      - offline_data:/app/data
     env_file:
       - .env
     environment:
@@ -50,6 +53,7 @@ services:
       REDIS_HOST: redis
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
+      SQLITE_PATH: /app/data/offline_events.db
     depends_on:
       - postgres
       - rabbitmq
@@ -120,3 +124,4 @@ services:
 volumes:
   postgres_data:
   grafana_data:
+  offline_data:

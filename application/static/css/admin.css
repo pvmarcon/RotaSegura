@@ -287,6 +287,142 @@ input[type="number"] {
   grid-column: 1 / -1;
 }
 
+.offline-card {
+  grid-column: 1 / -1;
+}
+
+.refresh-label {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.refresh-label.error,
+.offline-test-status.error {
+  color: var(--danger);
+}
+
+.offline-test-form {
+  grid-template-columns: 1fr 1fr auto;
+  margin-bottom: 0.45rem;
+}
+
+.offline-test-status {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  min-height: 1.1rem;
+  margin: 0 0 1rem;
+}
+
+.offline-test-status.success {
+  color: var(--accent-success);
+}
+
+.offline-counts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+
+.offline-counts div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: var(--surface);
+  padding: 0.75rem;
+}
+
+.offline-counts span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.offline-counts strong {
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+}
+
+.offline-table-wrap {
+  overflow-x: auto;
+}
+
+.offline-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.offline-table th {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 500;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.offline-table th,
+.offline-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.65rem 0.5rem;
+}
+
+.offline-table td {
+  color: var(--text-muted);
+}
+
+.offline-table code {
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+.offline-table td span {
+  color: var(--text-dim);
+}
+
+.queue-status {
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  padding: 0.2rem 0.45rem;
+}
+
+.queue-status--pending,
+.queue-status--processing {
+  color: var(--accent-data);
+}
+
+.queue-status--sent {
+  color: var(--accent-success);
+}
+
+.queue-status--failed {
+  color: var(--danger);
+}
+
+.offline-empty {
+  text-align: center;
+}
+
+@media (max-width: 520px) {
+  .offline-test-form {
+    grid-template-columns: 1fr;
+  }
+
+  .offline-counts {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 .qr-generator-layout {
   display: grid;
   grid-template-columns: minmax(220px, 0.7fr) minmax(320px, 1.3fr);

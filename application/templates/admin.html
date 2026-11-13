@@ -126,6 +126,53 @@
         </div>
       </div>
     </section>
+
+    <section class="card offline-card">
+      <div class="card-header-row">
+        <div>
+          <h2>Outbox offline</h2>
+          <p class="card-help">Gere um evento de teste e acompanhe o envio do SQLite para o RabbitMQ.</p>
+        </div>
+        <span id="offline-connection-status" class="refresh-label">Atualizando...</span>
+      </div>
+
+      <form id="offline-test-form" class="field-row offline-test-form">
+        <div class="field">
+          <label for="offline-student-id">ID do aluno</label>
+          <input id="offline-student-id" type="text" value="TEST-ALUNO-001" maxlength="50" required>
+        </div>
+        <div class="field">
+          <label for="offline-bus-id">ID do ônibus</label>
+          <input id="offline-bus-id" type="text" value="TEST-ONIBUS-001" maxlength="50" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Criar evento de teste</button>
+      </form>
+      <p id="offline-test-status" class="offline-test-status" role="status"></p>
+
+      <div class="offline-counts" aria-label="Contagem de eventos offline">
+        <div><span>Pendentes</span><strong id="offline-pending">0</strong></div>
+        <div><span>Processando</span><strong id="offline-processing">0</strong></div>
+        <div><span>Enviados</span><strong id="offline-sent">0</strong></div>
+        <div><span>Falhos</span><strong id="offline-failed">0</strong></div>
+      </div>
+
+      <div class="offline-table-wrap">
+        <table class="offline-table">
+          <thead>
+            <tr>
+              <th>Evento</th>
+              <th>Aluno / ônibus</th>
+              <th>Status</th>
+              <th>Tentativas</th>
+              <th>Criado em</th>
+            </tr>
+          </thead>
+          <tbody id="offline-events-body">
+            <tr><td colspan="5" class="offline-empty">Nenhum evento local.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </main>
 
   <div id="confirm-modal" class="modal-overlay" hidden>
@@ -141,6 +188,6 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="/static/js/admin.js?v=20260911-4"></script>
+  <script src="/static/js/admin.js?v=20261113-1"></script>
 </body>
 </html>

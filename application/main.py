@@ -2,11 +2,10 @@ import asyncio
 import hashlib
 import json
 import logging
+import sqlite3
 import time
 from contextlib import asynccontextmanager
-from typing import Optional
 
-import aio_pika
 import psycopg2
 import redis
 from fastapi import FastAPI, Form, HTTPException, Request, status
@@ -26,7 +25,6 @@ from config import (
     POSTGRES_PASSWORD,
     POSTGRES_PORT,
     POSTGRES_USER,
-    RABBITMQ_HOST,
     REDIS_HOST,
     SESSION_COOKIE_NAME,
     SESSION_COOKIE_SECURE,
@@ -35,7 +33,9 @@ from config import (
     QR_TOKEN_TTL_SECONDS,
     SERVICE_CONNECT_TIMEOUT_SECONDS,
     SIMULATION_HARD_CAP,
+    SQLITE_PATH,
 )
+from local_store import enqueue_event, get_queue_status, init_local_store
 from qr_tokens import QRTokenError, gerar_token_qr, validar_token_qr
 from simulation import active_job_id, event_stream, simulation_jobs, start_simulation, stop_simulation
 
@@ -51,10 +51,6 @@ redis_client = redis.Redis(
     socket_timeout=SERVICE_CONNECT_TIMEOUT_SECONDS,
 )
 
-rabbitmq_connection: Optional[aio_pika.abc.AbstractRobustConnection] = None
-rabbitmq_channel: Optional[aio_pika.abc.AbstractChannel] = None
-
-
 def claim_qr_scan(raw_qr_code: str, expires_at: int) -> bool:
     """Registra o primeiro uso do token; repetições do mesmo QR são recusadas."""
     fingerprint = hashlib.sha256(raw_qr_code.strip().encode("utf-8")).hexdigest()
@@ -69,30 +65,10 @@ def claim_qr_scan(raw_qr_code: str, expires_at: int) -> bool:
         ) from exc
 
 
-async def ensure_rabbitmq_channel() -> Optional[aio_pika.abc.AbstractChannel]:
-    global rabbitmq_connection, rabbitmq_channel
-    if rabbitmq_channel is not None and not rabbitmq_channel.is_closed:
-        return rabbitmq_channel
-    try:
-        rabbitmq_connection = await aio_pika.connect_robust(
-            host=RABBITMQ_HOST, port=5672, timeout=5
-        )
-        rabbitmq_channel = await rabbitmq_connection.channel()
-        await rabbitmq_channel.declare_queue("student_events", durable=True)
-        logger.info("RabbitMQ conectado.")
-        return rabbitmq_channel
-    except Exception as e:
-        logger.error("RabbitMQ indisponível: %s", e)
-        rabbitmq_channel = None
-        return None
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # RabbitMQ é conectado sob demanda ao registrar um embarque.
+    init_local_store(SQLITE_PATH)
     yield
-    if rabbitmq_connection is not None:
-        await rabbitmq_connection.close()
 
 
 app = FastAPI(
@@ -122,6 +98,12 @@ class QRGenerationPayload(BaseModel):
     validade_segundos: int = Field(default=300, ge=60, le=86400)
 
 
+class OfflineTestPayload(BaseModel):
+    student_id: str = Field(default="TEST-ALUNO-001", min_length=1, max_length=50)
+    bus_id: str = Field(default="TEST-ONIBUS-001", min_length=1, max_length=50)
+    monitor_id: str = Field(default="ADMIN-PANEL", min_length=1, max_length=50)
+
+
 @app.get("/scanner", response_class=HTMLResponse)
 async def qr_scanner(request: Request):
     return templates.TemplateResponse(
@@ -149,7 +131,7 @@ async def validar_qr(payload: QRValidationPayload):
             "mensagem": "Este QR Code já foi utilizado.",
         }
 
-    await publish_to_rabbitmq({
+    event_id = enqueue_event(SQLITE_PATH, {
         "student_id": aluno["aluno_id"],
         "bus_id": "QR-SCANNER",
         "monitor_id": "WEB-SCANNER",
@@ -159,9 +141,10 @@ async def validar_qr(payload: QRValidationPayload):
 
     return {
         "status": "sucesso",
+        "event_id": event_id,
         "dados_aluno": {"aluno_id": aluno["aluno_id"]},
         "exp": aluno["exp"],
-        "mensagem": "Embarque liberado. QR Code válido.",
+        "mensagem": "Embarque liberado e armazenado localmente para sincronização.",
     }
 
 
@@ -182,28 +165,33 @@ async def gerar_qr_admin(request: Request, payload: QRGenerationPayload):
     }
 
 
-async def publish_to_rabbitmq(event_data: dict):
-    """Publica o evento de embarque no RabbitMQ usando a conexão async persistente."""
-    channel = await ensure_rabbitmq_channel()
-    if channel is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Serviço de mensageria temporariamente indisponível.",
-        )
+@app.get("/admin/offline/status")
+async def admin_offline_status(request: Request):
+    if not get_session_user(request):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sessão inválida.")
+    return get_queue_status(SQLITE_PATH)
+
+
+@app.post("/admin/offline/test")
+async def admin_offline_test(request: Request, payload: OfflineTestPayload):
+    if not get_session_user(request):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sessão inválida.")
     try:
-        await channel.default_exchange.publish(
-            aio_pika.Message(
-                body=json.dumps(event_data).encode(),
-                delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
-            ),
-            routing_key="student_events",
+        event_id = enqueue_event(
+            SQLITE_PATH,
+            {
+                **payload.model_dump(),
+                "timestamp": time.time(),
+                "event_type": "ADMIN_OFFLINE_TEST",
+            },
         )
-    except Exception as e:
-        logger.error("Falha ao publicar evento: %s", e)
+    except sqlite3.Error as exc:
+        logger.error("Falha ao criar evento de teste offline: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Serviço de mensageria temporariamente indisponível. Erro interno: {str(e)}"
-        )
+            detail="SQLite local temporariamente indisponível.",
+        ) from exc
+    return {"event_id": event_id, "status": "pending"}
 
 
 @app.post("/scan", status_code=status.HTTP_200_OK)
@@ -213,7 +201,7 @@ async def process_qr_scan(payload: ScanPayload):
     event_data = payload.model_dump()
     event_data["event_type"] = "STUDENT_BOARDED"
 
-    await publish_to_rabbitmq(event_data)
+    event_id = enqueue_event(SQLITE_PATH, event_data)
 
     execution_time_ms = (time.time() - start_time) * 1000
 
@@ -226,7 +214,8 @@ async def process_qr_scan(payload: ScanPayload):
 
     return {
         "status": "success",
-        "message": "Embarque registrado e enviado para processamento!",
+        "message": "Embarque registrado localmente e aguardando sincronização.",
+        "event_id": event_id,
         "latency_ms": round(execution_time_ms, 2)
     }
 

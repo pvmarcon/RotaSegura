@@ -6,6 +6,8 @@ import pika
 import psycopg2
 import redis
 
+from local_store import claim_batch, init_local_store, mark_failed, mark_sent
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("async_worker")
 
@@ -17,6 +19,11 @@ POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 POSTGRES_DB = os.getenv("POSTGRES_DB", "smart_cities_db")
 POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
+SQLITE_PATH = os.getenv("SQLITE_PATH", "./data/offline_events.db")
+OFFLINE_BATCH_SIZE = int(os.getenv("OFFLINE_BATCH_SIZE", "100"))
+OFFLINE_SYNC_INTERVAL_SECONDS = float(os.getenv("OFFLINE_SYNC_INTERVAL_SECONDS", "5"))
+OFFLINE_PROCESSING_TIMEOUT_SECONDS = float(os.getenv("OFFLINE_PROCESSING_TIMEOUT_SECONDS", "300"))
+OFFLINE_RETRY_DELAY_SECONDS = float(os.getenv("OFFLINE_RETRY_DELAY_SECONDS", "30"))
 
 redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0, decode_responses=True)
 
@@ -52,6 +59,36 @@ def init_db():
         logger.info(" [PostgreSQL] Tabela 'student_events' verificada/atualizada com sucesso.")
     except Exception as e:
         logger.error(f"Erro ao inicializar tabela no PostgreSQL: {e}")
+
+
+def publish_local_batch(channel) -> int:
+    events = claim_batch(
+        SQLITE_PATH,
+        OFFLINE_BATCH_SIZE,
+        OFFLINE_PROCESSING_TIMEOUT_SECONDS,
+    )
+    if not events:
+        return 0
+
+    sent_count = 0
+    try:
+        for event in events:
+            channel.basic_publish(
+                exchange="",
+                routing_key="student_events",
+                body=json.dumps(event).encode("utf-8"),
+                properties=pika.BasicProperties(delivery_mode=2),
+            )
+            mark_sent(SQLITE_PATH, [event["event_id"]])
+            sent_count += 1
+        logger.info("[SQLite] Lote enviado: %s eventos.", sent_count)
+        return sent_count
+    except Exception:
+        remaining_ids = [event["event_id"] for event in events[sent_count:]]
+        mark_failed(SQLITE_PATH, remaining_ids, OFFLINE_RETRY_DELAY_SECONDS)
+        logger.exception("[SQLite] Falha ao enviar lote; eventos marcados para retry.")
+        raise
+
 
 def process_event(ch, method, properties, body):
     """Callback invocado sempre que uma mensagem chega no RabbitMQ."""
@@ -97,19 +134,43 @@ def process_event(ch, method, properties, body):
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
 
 def start_worker():
+    init_local_store(SQLITE_PATH)
     init_db()
-    
-    # Aguarda o RabbitMQ inicializar completamente
-    time.sleep(2)
-    connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
-    channel = connection.channel()
-    
-    channel.queue_declare(queue="student_events", durable=True)
-    channel.basic_qos(prefetch_count=1)
-    channel.basic_consume(queue="student_events", on_message_callback=process_event)
 
-    logger.info(" [*] Worker ativo e aguardando eventos no RabbitMQ...")
-    channel.start_consuming()
+    while True:
+        connection = None
+        try:
+            logger.info("[Worker] Verificando conexão de rede com RabbitMQ...")
+            connection = pika.BlockingConnection(
+                pika.ConnectionParameters(host=RABBITMQ_HOST, connection_attempts=1)
+            )
+            channel = connection.channel()
+            channel.queue_declare(queue="student_events", durable=True)
+            channel.confirm_delivery()
+            channel.basic_qos(prefetch_count=1)
+            logger.info("[Worker] RabbitMQ conectado; sincronização offline ativa.")
+
+            while connection.is_open:
+                try:
+                    publish_local_batch(channel)
+                except (pika.exceptions.AMQPError, OSError):
+                    break
+
+                messages = channel.consume(
+                    queue="student_events",
+                    inactivity_timeout=OFFLINE_SYNC_INTERVAL_SECONDS,
+                    auto_ack=False,
+                )
+                method, properties, body = next(messages)
+                if method is not None:
+                    process_event(channel, method, properties, body)
+                channel.cancel()
+        except (pika.exceptions.AMQPError, OSError) as exc:
+            logger.warning("[Worker] RabbitMQ indisponível: %s", exc)
+            time.sleep(OFFLINE_SYNC_INTERVAL_SECONDS)
+        finally:
+            if connection is not None and connection.is_open:
+                connection.close()
 
 if __name__ == "__main__":
     start_worker()
